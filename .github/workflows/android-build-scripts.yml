@@ -164,7 +164,7 @@ jobs:
       - name: run the build script
         env:
           EXTRA_OPTIONS: ${{ inputs.extra-options }}
-        run: ./android.sh --arch=arm64-v8a --enable-lib-all --enable-gpl --disable-lib-gnutls ${EXTRA_OPTIONS}
+        run: ./android.sh --enable-lib-all --enable-gpl --disable-lib-gnutls ${EXTRA_OPTIONS}
       - name: print build logs
         if: ${{ always() }}
         run: cat build.log
