@@ -1,4 +1,3 @@
-
 name: Build AARs
 
 on:
@@ -117,6 +116,34 @@ jobs:
           print("Playback-only FFmpeg configuration applied.")
           PY
 
+      # With --no-ffmpeg-kit-protocols the custom memory/stream protocol
+      # handlers in ffmpegkit.c are compiled out of use but still defined,
+      # so clang reports -Wunused-function and -Werror makes it fatal.
+      # Keep -Werror for everything else; only demote this one warning.
+      - name: Demote unused-function warning to non-fatal
+        run: |
+          set -euo pipefail
+
+          mapfile -t FILES < <(
+            grep -rIl --include='*.mk' --exclude-dir=.git --exclude-dir=prebuilt \
+              -e '-Werror' . || true
+          )
+
+          if [[ ${#FILES[@]} -eq 0 ]]; then
+            echo "No -Werror found in any .mk file; locating its source:"
+            grep -rIn --exclude-dir=.git --exclude-dir=prebuilt -e '-Werror' . || true
+            echo "Patch the file listed above (e.g. android.sh APP_CFLAGS)."
+            exit 1
+          fi
+
+          for f in "${FILES[@]}"; do
+            if ! grep -q -- '-Wno-error=unused-function' "$f"; then
+              sed -i 's/-Werror\b/-Werror -Wno-error=unused-function/g' "$f"
+            fi
+            echo "Patched: $f"
+            grep -n -- 'Werror' "$f"
+          done
+
       - name: Build FFmpegKitNext
         run: |
           set -euo pipefail
@@ -164,5 +191,5 @@ jobs:
         with:
           name: build-logs-${{ matrix.abi }}
           path: build.log
-          if-no-files-found: ignore
+          if-no-files-found: warn
           retention-days: 7
